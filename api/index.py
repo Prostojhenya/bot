@@ -4,18 +4,13 @@ import json
 import requests
 from http.server import BaseHTTPRequestHandler
 
-from dotenv import load_dotenv
 import gspread
 from google.oauth2.service_account import Credentials
 
 
 # ================= ЗАГРУЗКА ПЕРЕМЕННЫХ =================
 
-load_dotenv()
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-
-if not BOT_TOKEN:
-    BOT_TOKEN = "8551219311:AAFhc1mI0snOy2JEXXuTl3fZFtMp00exvXw"
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8551219311:AAFhc1mI0snOy2JEXXuTl3fZFtMp00exvXw")
 
 GOOGLE_SHEET_ID = "14jQrrNey8fI_WTdqG2YAlcloNIBilwNOQ7JbEUMkHNc"
 
