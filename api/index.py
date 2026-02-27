@@ -155,4 +155,4 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
-        self.wfile.write(b"Telegram Bot Webhook is running")
+        self.wfile.write(b"Telegram Bot Webhook is running! Ready to receive orders.")
