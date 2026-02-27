@@ -1,0 +1,20 @@
+БЫСТРЫЙ СТАРТ - ВЫПОЛНИТЕ ЭТИ КОМАНДЫ:
+
+1. Создайте репозиторий на GitHub:
+   https://github.com/new
+   Название: telegram-order-bot
+   Тип: Private
+
+2. Выполните команды (замените YOUR_USERNAME на ваш GitHub username):
+
+git remote add origin https://github.com/YOUR_USERNAME/telegram-order-bot.git
+git branch -M main
+git push -u origin main
+
+3. Откройте Vercel и импортируйте репозиторий:
+   https://vercel.com/new
+
+4. После деплоя запустите:
+   python set_webhook.py
+
+ГОТОВО!

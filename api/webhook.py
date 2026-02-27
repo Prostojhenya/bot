@@ -120,9 +120,11 @@ async def handle_order(message: Message):
 
 # ================= VERCEL HANDLER =================
 
+from http.server import BaseHTTPRequestHandler
+
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
+        content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
         
         try:
