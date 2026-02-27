@@ -146,6 +146,8 @@ class handler(BaseHTTPRequestHandler):
             
             update = json.loads(post_data.decode('utf-8'))
             
+            print(f"Received update: {update}")
+            
             # Обработка сообщения
             if "message" in update:
                 handle_message(update["message"])
@@ -155,7 +157,9 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             
         except Exception as e:
+            import traceback
             print(f"Error: {e}")
+            print(traceback.format_exc())
             self.send_response(200)
             self.end_headers()
     
