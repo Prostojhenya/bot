@@ -2,7 +2,7 @@ import os
 import re
 import json
 import requests
-from flask import Flask, request
+from http.server import BaseHTTPRequestHandler
 
 from dotenv import load_dotenv
 import gspread
@@ -15,11 +15,9 @@ load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 if not BOT_TOKEN:
-    raise ValueError("TELEGRAM_BOT_TOKEN не найден в .env")
+    BOT_TOKEN = "8551219311:AAFhc1mI0snOy2JEXXuTl3fZFtMp00exvXw"
 
 GOOGLE_SHEET_ID = "14jQrrNey8fI_WTdqG2YAlcloNIBilwNOQ7JbEUMkHNc"
-
-app = Flask(__name__)
 
 
 # ================= GOOGLE SHEETS =================
@@ -83,7 +81,10 @@ def parse_order(text: str):
 def send_message(chat_id, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {"chat_id": chat_id, "text": text}
-    requests.post(url, json=data)
+    try:
+        requests.post(url, json=data, timeout=10)
+    except:
+        pass
 
 
 def handle_message(message):
@@ -122,31 +123,29 @@ def handle_message(message):
         send_message(chat_id, f"Ошибка: {str(e)}")
 
 
-# ================= FLASK ROUTES =================
+# ================= VERCEL HANDLER =================
 
-@app.route('/', methods=['GET'])
-@app.route('/api/webhook', methods=['GET'])
-def index():
-    return "Telegram Bot Webhook is running! Ready to receive orders."
-
-
-@app.route('/api/webhook', methods=['POST'])
-def webhook():
-    try:
-        update = request.get_json()
-        print(f"Received: {update}")
-        
-        if "message" in update:
-            handle_message(update["message"])
-        
-        return "", 200
-    except Exception as e:
-        print(f"Error: {e}")
-        import traceback
-        print(traceback.format_exc())
-        return "", 200
-
-
-# Vercel handler
-def handler(event, context):
-    return app(event, context)
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            
+            update = json.loads(post_data.decode('utf-8'))
+            
+            if "message" in update:
+                handle_message(update["message"])
+            
+            self.send_response(200)
+            self.end_headers()
+            
+        except Exception as e:
+            print(f"Error: {e}")
+            self.send_response(200)
+            self.end_headers()
+    
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b"Telegram Bot Webhook is running! Ready to receive orders.")
