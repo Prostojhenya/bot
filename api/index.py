@@ -122,20 +122,31 @@ def handle_message(message):
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
+        print("POST request received")
         try:
             content_length = int(self.headers.get('Content-Length', 0))
+            print(f"Content length: {content_length}")
+            
             post_data = self.rfile.read(content_length)
+            print(f"Raw data: {post_data}")
             
             update = json.loads(post_data.decode('utf-8'))
+            print(f"Parsed update: {update}")
             
             if "message" in update:
+                print("Processing message")
                 handle_message(update["message"])
+            else:
+                print("No message in update")
             
             self.send_response(200)
             self.end_headers()
+            print("Response sent")
             
         except Exception as e:
+            import traceback
             print(f"Error: {e}")
+            print(traceback.format_exc())
             self.send_response(200)
             self.end_headers()
     
