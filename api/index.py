@@ -2,12 +2,9 @@ import os
 import re
 import json
 from http.server import BaseHTTPRequestHandler
+import requests
 
 from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher
-from aiogram.types import Message, Update
-from aiogram.filters import CommandStart
-
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -89,42 +86,54 @@ def parse_order(text: str):
     return data
 
 
-# ================= TELEGRAM =================
+def send_message(chat_id, text):
+    """Отправка сообщения через Telegram API"""
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    data = {
+        "chat_id": chat_id,
+        "text": text
+    }
+    requests.post(url, json=data)
 
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
 
-
-@dp.message(CommandStart())
-async def start_handler(message: Message):
-    await message.answer("Отправьте текст заявки.")
-
-
-@dp.message()
-async def handle_order(message: Message):
-    text = message.text
-
-    if not text or "Заявка на сборку №" not in text:
-        await message.answer("Это не заявка.")
+def handle_message(message):
+    """Обработка входящего сообщения"""
+    chat_id = message.get("chat", {}).get("id")
+    text = message.get("text", "")
+    
+    if not chat_id:
         return
-
+    
+    # Команда /start
+    if text == "/start":
+        send_message(chat_id, "Отправьте текст заявки.")
+        return
+    
+    # Проверка на заявку
+    if "Заявка на сборку №" not in text:
+        send_message(chat_id, "Это не заявка.")
+        return
+    
+    # Парсинг заявки
     parsed = parse_order(text)
-
     last_name, first_name, middle_name = split_fio(parsed["fio"])
-
-    worksheet = get_worksheet()
-
-    phone_with_8 = "8" + parsed["phone"]
-    worksheet.update("F16", phone_with_8)
-    worksheet.update("G16", last_name)
-    worksheet.update("G17", first_name)
-    worksheet.update("G18", middle_name)
-    worksheet.update("G19", parsed["number"])
-    worksheet.update("H16:L16", [[parsed["address"], "", "", "", ""]])
-    worksheet.update("M16:O16", [[parsed["item"], "", ""]])
-    worksheet.update("P16", parsed["assembly_sum"])
-
-    await message.answer(f"Заявка №{parsed['number']} записана.")
+    
+    try:
+        worksheet = get_worksheet()
+        
+        phone_with_8 = "8" + parsed["phone"]
+        worksheet.update("F16", phone_with_8)
+        worksheet.update("G16", last_name)
+        worksheet.update("G17", first_name)
+        worksheet.update("G18", middle_name)
+        worksheet.update("G19", parsed["number"])
+        worksheet.update("H16:L16", [[parsed["address"], "", "", "", ""]])
+        worksheet.update("M16:O16", [[parsed["item"], "", ""]])
+        worksheet.update("P16", parsed["assembly_sum"])
+        
+        send_message(chat_id, f"Заявка №{parsed['number']} записана.")
+    except Exception as e:
+        send_message(chat_id, f"Ошибка: {str(e)}")
 
 
 # ================= VERCEL HANDLER =================
@@ -135,11 +144,11 @@ class handler(BaseHTTPRequestHandler):
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length)
             
-            update_data = json.loads(post_data.decode('utf-8'))
-            update = Update(**update_data)
+            update = json.loads(post_data.decode('utf-8'))
             
-            import asyncio
-            asyncio.run(dp.feed_update(bot, update))
+            # Обработка сообщения
+            if "message" in update:
+                handle_message(update["message"])
             
             # Telegram требует пустой ответ 200 OK
             self.send_response(200)
