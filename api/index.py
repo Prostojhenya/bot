@@ -1,8 +1,8 @@
 import os
 import re
 import json
-from http.server import BaseHTTPRequestHandler
 import requests
+from flask import Flask, request
 
 from dotenv import load_dotenv
 import gspread
@@ -18,7 +18,8 @@ if not BOT_TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN не найден в .env")
 
 GOOGLE_SHEET_ID = "14jQrrNey8fI_WTdqG2YAlcloNIBilwNOQ7JbEUMkHNc"
-SERVICE_ACCOUNT_FILE = "credentials.json"
+
+app = Flask(__name__)
 
 
 # ================= GOOGLE SHEETS =================
@@ -29,20 +30,13 @@ def get_worksheet():
         "https://www.googleapis.com/auth/drive"
     ]
 
-    # Попытка загрузить credentials из переменной окружения или файла
     google_creds = os.getenv("GOOGLE_CREDENTIALS")
     
     if google_creds:
-        # Если credentials в переменной окружения (JSON строка)
-        import json
         creds_dict = json.loads(google_creds)
         credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
     else:
-        # Если credentials в файле
-        credentials = Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE,
-            scopes=scopes
-        )
+        credentials = Credentials.from_service_account_file("credentials.json", scopes=scopes)
 
     client = gspread.authorize(credentials)
     spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
@@ -87,34 +81,26 @@ def parse_order(text: str):
 
 
 def send_message(chat_id, text):
-    """Отправка сообщения через Telegram API"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {
-        "chat_id": chat_id,
-        "text": text
-    }
+    data = {"chat_id": chat_id, "text": text}
     requests.post(url, json=data)
 
 
 def handle_message(message):
-    """Обработка входящего сообщения"""
     chat_id = message.get("chat", {}).get("id")
     text = message.get("text", "")
     
     if not chat_id:
         return
     
-    # Команда /start
     if text == "/start":
         send_message(chat_id, "Отправьте текст заявки.")
         return
     
-    # Проверка на заявку
     if "Заявка на сборку №" not in text:
         send_message(chat_id, "Это не заявка.")
         return
     
-    # Парсинг заявки
     parsed = parse_order(text)
     last_name, first_name, middle_name = split_fio(parsed["fio"])
     
@@ -136,35 +122,25 @@ def handle_message(message):
         send_message(chat_id, f"Ошибка: {str(e)}")
 
 
-# ================= VERCEL HANDLER =================
+# ================= FLASK ROUTES =================
 
-class handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            post_data = self.rfile.read(content_length)
-            
-            update = json.loads(post_data.decode('utf-8'))
-            
-            print(f"Received update: {update}")
-            
-            # Обработка сообщения
-            if "message" in update:
-                handle_message(update["message"])
-            
-            # Telegram требует пустой ответ 200 OK
-            self.send_response(200)
-            self.end_headers()
-            
-        except Exception as e:
-            import traceback
-            print(f"Error: {e}")
-            print(traceback.format_exc())
-            self.send_response(200)
-            self.end_headers()
-    
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(b"Telegram Bot Webhook is running! Ready to receive orders.")
+@app.route('/', methods=['GET'])
+def index():
+    return "Telegram Bot Webhook is running! Ready to receive orders."
+
+
+@app.route('/api/webhook', methods=['POST'])
+def webhook():
+    try:
+        update = request.get_json()
+        print(f"Received: {update}")
+        
+        if "message" in update:
+            handle_message(update["message"])
+        
+        return "", 200
+    except Exception as e:
+        print(f"Error: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return "", 200
