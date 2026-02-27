@@ -125,6 +125,7 @@ def handle_message(message):
 # ================= FLASK ROUTES =================
 
 @app.route('/', methods=['GET'])
+@app.route('/api/webhook', methods=['GET'])
 def index():
     return "Telegram Bot Webhook is running! Ready to receive orders."
 
@@ -144,3 +145,8 @@ def webhook():
         import traceback
         print(traceback.format_exc())
         return "", 200
+
+
+# Vercel handler
+def handler(event, context):
+    return app(event, context)
