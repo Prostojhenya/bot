@@ -32,10 +32,20 @@ def get_worksheet():
         "https://www.googleapis.com/auth/drive"
     ]
 
-    credentials = Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE,
-        scopes=scopes
-    )
+    # Попытка загрузить credentials из переменной окружения или файла
+    google_creds = os.getenv("GOOGLE_CREDENTIALS")
+    
+    if google_creds:
+        # Если credentials в переменной окружения (JSON строка)
+        import json
+        creds_dict = json.loads(google_creds)
+        credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    else:
+        # Если credentials в файле
+        credentials = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE,
+            scopes=scopes
+        )
 
     client = gspread.authorize(credentials)
     spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
